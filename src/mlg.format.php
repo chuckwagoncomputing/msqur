@@ -115,11 +115,13 @@ class MlgParser {
 	// file format description:
 	private	$mlgMagic = "MLVLG\0";
 	
-	private	$mlgHeaderFmt = "a6Magic/nVersion/NUnixTimestamp/nTextOffset/nRes1/nDataOffset/nRecordSize/nNumFields";
-	private $mlgHeaderSize = 0x16;
+	private	$mlgMagicFmt = "a6Magic/nVersion";
+	private	$mlgHeaderFmt = array(1=>"a6Magic/nVersion/NUnixTimestamp/nTextOffset/nRes1/nDataOffset/nRecordSize/nNumFields",
+		2=>"a6Magic/nVersion/NUnixTimestamp/NTextOffset/NDataOffset/nRecordSize/nNumFields");
+	private $mlgHeaderSize = array(1=>0x16, 2=>0x18);
 	
-	private	$mlgFieldFmt = "cType/a34Name/a11Units/GScale/GShift/cPrecision";
-	private $mlgFieldSize = 0x37;
+	private	$mlgFieldFmt = array(1=>"cType/a34Name/a11Units/GScale/GShift/cPrecision", 2=>"cType/a34Name/a11Units/GScale/GShift/cPrecision/a34Category");
+	private $mlgFieldSize = array(1=>0x37, 2=>0x59);
 	
 	//private	$mlgDataTypes = array(0=>"C"/*U08*/, 1=>"c"/*S08*/, 2=>"n"/*U16*/, 3=>"s"/*S16*/, 4=>"N"/*U32*/, 5=>"l"/*S32*/, 6=>""/*?*/, 7=>"G"/*F32*/);
 	private	$mlgDataTypes = array(0=>"C"/*U08*/, 1=>"c"/*S08*/, 2=>"S"/*U16*/, 3=>"s"/*S16*/, 4=>"L"/*U32*/, 5=>"l"/*S32*/, 6=>""/*?*/, 7=>"f"/*F32*/);
@@ -135,10 +137,10 @@ class MlgParser {
 
 	function detectFormat($data) {
 		$dataSize = strlen($data);
-		if ($dataSize < $this->mlgHeaderSize)
+		if ($dataSize < $this->mlgHeaderSize[1])
 			return "";
-		$header = @unpack($this->mlgHeaderFmt, $data);
-		if ($header["Magic"] == $this->mlgMagic)
+		$magic = @unpack($this->mlgMagicFmt, $data);
+		if ($magic["Magic"] == $this->mlgMagic)
 			return "LogBinary";
 		if ($dataSize > 100)
 			$data = substr($data, 0, 100);
@@ -156,26 +158,32 @@ class MlgParser {
 		// start processing...
 		$timeStart = microtime(true);
 
-		if ($dataSize < $this->mlgHeaderSize)
+		if ($dataSize < $this->mlgHeaderSize[1])
 			return array("text"=>"The log file is too small or empty!", "status"=>"deny");
 
-		$header = @unpack($this->mlgHeaderFmt, $data);
+		$magic = @unpack($this->mlgMagicFmt, $data);
 		
-		//print_r($header);
-		
-		if ($header["Magic"] != $this->mlgMagic)
+		if ($magic["Magic"] != $this->mlgMagic)
 			return array("text"=>"Wrong log file header! MLG-format not recognized!", "status"=>"deny");
+		$ver = intval($magic["Version"]);
+		if ($ver < 1 || $ver > 2)
+			return array("text"=>"Unknown log file version " . $ver . "! MLG-format not recognized!", "status"=>"deny");
+		
+		$header = @unpack($this->mlgHeaderFmt[$ver], $data);
+
 		if ($header["NumFields"] < 1)
 			return array("text"=>"Corrupted log file header!", "status"=>"deny");
 		$fields = array();
-		$fdata = substr($data, $this->mlgHeaderSize);
+		$fdata = substr($data, $this->mlgHeaderSize[$ver]);
 		
 		$dataFmts = array($this->mlgDataExtraField);
 		
 		$dataRecordSize = 0;
 		$recList = array();
 		for ($i = 0; $i < $header["NumFields"]; $i++) {
-			$field = unpack($this->mlgFieldFmt, $fdata);
+			$field = unpack($this->mlgFieldFmt[$ver], $fdata);
+
+			debug(print_r($field,true));
 
 			if (!isset($field["Type"]) || !isset($field["Name"])) {
 				return array("text"=>"Wrong data fields or unknown format!", "status"=>"deny");
@@ -197,7 +205,7 @@ class MlgParser {
 			if ($this->reqFields === NULL)
 				$recList[] = array($field["dName"], $field["Scale"]);
 			
-			$fdata = substr($fdata, $this->mlgFieldSize);
+			$fdata = substr($fdata, $this->mlgFieldSize[$ver]);
 			$fields[] = $field;
 		}
 
@@ -247,7 +255,7 @@ class MlgParser {
 		// construct data field
 		$dataFmt = implode("/", $dataFmts);
 		
-		$dataAfterFieldsOffset = $this->mlgHeaderSize + $header["NumFields"] * $this->mlgFieldSize;
+		$dataAfterFieldsOffset = $this->mlgHeaderSize[$ver] + $header["NumFields"] * $this->mlgFieldSize[$ver];
 
 		if ($header["DataOffset"] > $dataSize || $header["DataOffset"] < $dataAfterFieldsOffset) {
 			return array("text"=>"Corrupted file data!", "status"=>"deny");
