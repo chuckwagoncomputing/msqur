@@ -183,8 +183,6 @@ class MlgParser {
 		for ($i = 0; $i < $header["NumFields"]; $i++) {
 			$field = unpack($this->mlgFieldFmt[$ver], $fdata);
 
-			debug(print_r($field,true));
-
 			if (!isset($field["Type"]) || !isset($field["Name"])) {
 				return array("text"=>"Wrong data fields or unknown format!", "status"=>"deny");
 			}
