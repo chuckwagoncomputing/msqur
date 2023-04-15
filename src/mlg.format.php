@@ -359,7 +359,7 @@ class MlgParser {
 	private $reqFieldsForDataPoints = array(
 		// additional fields
 		IDX_IAT => ["iat", "mat"], IDX_MAF => ["maf", "maf_sensor"], IDX_MAP => "map", IDX_VBATT => "vbatt", IDX_LOAD => ["fuel_load", "engine_load", "fuelingLoad"], IDX_ADVANCE => "timing", IDX_MASS_FLOW => ["maf_air_flow", "air_flow", "maf_estimate"],
-		IDX_IDLE_POS => "idle_air_valve", IDX_LAST_INJECT => "fuel_last_injection",
+		IDX_IDLE_POS => "idle_air_valve", IDX_LAST_INJECT => ["fuel_last_injection", "fuel_last_inj_pulsewidth"],
 	);
 	private $additionalFields = array(
 		// for log-tune relational table
