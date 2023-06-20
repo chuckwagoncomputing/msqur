@@ -85,7 +85,7 @@ class DB
 			//Convert encoding to UTF-8
 			$xml = mb_convert_encoding($xml, "UTF-8");
 			//Strip out invalid xmlns
-			$xml = preg_replace('/xmlns=".*?"/', '', $xml);
+			//$xml = preg_replace('/xmlns=".*?"/', '', $xml);
 			// [andreika]: get date&comment and remove this data from the XML data
 			if (preg_match("/<bibliography(.*?)(author\s*=\s*\"([^\"]*)\"?)\s+(tuneComment\s*=\s*\"([^\"]*)\"?)\s+writeDate\s*=\s*\"([^\"]+)\"\s*\/>/", $xml, $bib)) {
 				$author = $bib[3];
@@ -944,7 +944,7 @@ class DB
 			//Convert encoding to UTF-8
 			$xml = mb_convert_encoding($xml, "UTF-8");
 			//Strip out invalid xmlns
-			$xml = preg_replace('/xmlns=".*?"/', '', $xml);
+			//$xml = preg_replace('/xmlns=".*?"/', '', $xml);
 			$xml = preg_replace("/<bibliography[^\/]*\/>/", "", $xml);
 			$xml = trim($xml);
 			// get CRC
