@@ -26,6 +26,7 @@ if (isset($_GET['msq'])) {
     header('Content-Type: application/xml');
     header('Content-Disposition: attachment; filename="' . $id . '.msq"');
     header('Pragma: no-cache');
+    $xml = preg_replace("/<msq >/", "<msq xmlns=\"http://www.msefi.com/:msq\">", $xml);
     echo trim($xml); //`trim` is a workaround for #30
   } else {
     http_response_code(404);
