@@ -57,6 +57,8 @@ class MSQ
 		$errorCount = 0; //Keep track of how many things go wrong.
 		
 		libxml_use_internal_errors(true);
+		// Strip out invalid xmlns, otherwise simplexml parser fails
+		$xml = preg_replace('/xmlns=".*?"/', '', $xml);
 		$msq = simplexml_load_string($xml);
 
 		if ($msq === false) {
