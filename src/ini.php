@@ -148,6 +148,7 @@ class INI
 		$conditions = array();
 
 		$directives = array();
+		$defines = array();
 		$skipByDirective = false;
 		$settings = INI::getDefaultSettings($optionValues);
 		$curSettingGroup = NULL;
@@ -159,7 +160,7 @@ class INI
 			if ($line == '' || $line[0] == ';') continue;
 			if ($line[0] == '#')
 			{
-				$skipByDirective = INI::processDirective($line, $directives, $settings);
+				$skipByDirective = INI::processDirective($line, $directives, $defines, $settings);
 				continue;
 			}
 
@@ -202,11 +203,11 @@ class INI
 			if ($hasComment !== FALSE) $value = substr($value, 0, $hasComment);
 			
 			$value = trim($value);
-			
+
 			switch ($currentSection)
 			{
 				case "Constants": //The start of our journey. Fill in details about variables.
-					$values[$currentSection][$key] = INI::defaultSectionHandler($value, false, $msq, $outputs);
+					$values[$currentSection][$key] = INI::defaultSectionHandler($value, false, $msq, $defines, $outputs);
 					break;
 				
 				case "SettingContextHelp": //Any help text for our variable
@@ -214,7 +215,7 @@ class INI
 					break;
 				
 				case "Menu":
-					$menu = INI::defaultSectionHandler($value, true, $msq, $outputs);
+					$menu = INI::defaultSectionHandler($value, true, $msq, $defines, $outputs);
 					if (is_array($menu)) {
 						if ($condition !== NULL) {
 							$menu[count($menu) - 1] = $condition;
@@ -232,7 +233,7 @@ class INI
 				case "UserDefined":
 					if ($key == "dialog")
 					{
-						$curDialog = INI::defaultSectionHandler($value, false, $msq, $outputs);
+						$curDialog = INI::defaultSectionHandler($value, false, $msq, $defines, $outputs);
 						if (!is_array($curDialog))
 							$curDialog = array($curDialog);
 					} else if ($key == "indicatorPanel") {
@@ -241,7 +242,7 @@ class INI
 
 					if (is_array($curDialog))
 					{
-						$dlg = INI::defaultSectionHandler($value, false, $msq, $outputs);
+						$dlg = INI::defaultSectionHandler($value, false, $msq, $defines, $outputs);
 						if (is_array($dlg)) {
 							if ($condition !== NULL) {
 								foreach ($dlg as &$d) {
@@ -394,14 +395,14 @@ class INI
 					break;
 				
 				case "OutputChannels": //These are for gauges and datalogging
-					$v = INI::defaultSectionHandler($value, false, $msq, $outputs);
+					$v = INI::defaultSectionHandler($value, false, $msq, $defines, $outputs);
 					// here we store only computable outputs with expressions
 					if (isset($v[0]) && strpos($v[0], '{') !== FALSE && $condition !== NULL) {
 						$outputs["outputs"][$key] = $condition;
 					}
 					break;
 				case "SettingGroups": //misc settings
-					$values = INI::defaultSectionHandler($value, false, $msq, $outputs);
+					$values = INI::defaultSectionHandler($value, false, $msq, $defines, $outputs);
 					if ($key == "settingGroup") {
 						$curSettingGroup = isset($settings[$key]) ? count($settings[$key]) : 0;
 						// this will be the options list
@@ -416,7 +417,7 @@ class INI
 
 					break;
 				case "PcVariables":
-					$values[$currentSection][$key] = INI::defaultSectionHandler($value, false, $msq, $outputs);
+					$values[$currentSection][$key] = INI::defaultSectionHandler($value, false, $msq, $defines, $outputs);
 					break;
 				//Don't care about these
 				case "Datalog": //Not relevant
@@ -436,7 +437,7 @@ class INI
 				case NULL:
 					//Should be global values (don't think any ini's have them)
 					assert($currentSection === NULL);
-					$globals[$key] = INI::defaultSectionHandler($value, false, $msq, $outputs);
+					$globals[$key] = INI::defaultSectionHandler($value, false, $msq, $defines, $outputs);
 				break;
 			}
 		}
@@ -450,14 +451,23 @@ class INI
 	 * @param $value
 	 * @returns An array if there's a comma, or just the value.
 	 */
-	private static function defaultSectionHandler($value, $isLessStrict = false, $msq, $outputs)
+	private static function defaultSectionHandler($value, $isLessStrict = false, $msq, $defines, $outputs)
 	{
+		if (strpos($value, '$') !== 0) {
+			$value = preg_replace_callback('/\$(\w+)/', function ($m) use($defines) {
+				if (array_key_exists($m[1], $defines)) {
+					return $defines[$m[1]];
+				}
+				return $m[0];
+			}, $value);			
+		}
+
 		//For things like "nCylinders      = bits,    U08,      0,"
 		//split CSV into an array
 		if (strpos($value, ',') !== FALSE || $isLessStrict) {
 			// a simple explode() by comma is not enough since we have expressions like "text,text"
 			$v = $value;
-			if (preg_match_all("/\"[^\"]*\"|[A-Za-z0-9_\.\[\]\:]+|{[^\}]+}/", $value, $ret))
+			if (preg_match_all("/\"[^\"]*\"|[A-Za-z0-9_\.\[\]\:\$]+|{[^\}]+}/", $value, $ret))
 				$v = $ret[0];
 			if (count($v) == 1)
 				$v = $v[0];
@@ -532,7 +542,7 @@ class INI
 		return "return " . implode(" ", $lexemes) . ";";
 	}
 
-	public static function processDirective($line, &$directives, $settings)
+	public static function processDirective($line, &$directives, &$defines, $settings)
 	{
 		$c = count($directives) - 1;
 		if (preg_match("/#if\s+([A-Za-z0-9]+)/", $line, $ret)) {
@@ -546,6 +556,9 @@ class INI
 		}
 		else if (preg_match("/#endif/", $line, $ret)) {
 			array_pop($directives);
+		}
+		else if (preg_match("/#define\s+(\w+)=(.*)$/", $line, $ret)) {
+			$defines[$ret[1]] = $ret[2];
 		}
 		return count($directives) != 0 && end($directives) != 1;
 	}
