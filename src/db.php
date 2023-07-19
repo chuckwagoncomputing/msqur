@@ -618,7 +618,14 @@ class DB
 		$reqFields = getEngineDbRequiredKeys($metadata);
 		if (!array_keys_exist($engine, ...$reqFields))
 		{//Some MSQs seem to be missing the injType
-			echo '<div class="warn">Incomplete engine information. Unable to update engine metadata.</div>';
+			$fieldsNotFound = array();
+			foreach ($reqFields as $r) {
+				if (!array_key_exists($r, $engine)) {
+					$fieldsNotFound[] = $r;
+				}
+			}
+			echo '<div class="warn">WARNING! Incomplete engine information. Could not find the following field(s): ' . implode(',', $fieldsNotFound) . '.<br>Unable to update engine metadata.</div>';
+
 			//var_export($engine);
 			return false;
 		}
