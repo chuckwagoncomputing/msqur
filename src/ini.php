@@ -227,7 +227,8 @@ class INI
 					}
 					if (isset($curMenu))
 					{
-						$values["menu"][$curMenu][$key][] = $menu;
+						$curMenuName = (is_array($curMenu)) ? $curMenu[0] : $curMenu;
+						$values["menu"][$curMenuName][$key][] = $menu;
 					}
 					break;
 				case "UserDefined":
